@@ -15,16 +15,52 @@ describe("POST /register", () => {
   it("should make a user", async () => {
     return ask(server)
       .post("/api/auth/register")
-      .send({ username: "skyes", password: "pie" });
-    expect(user.body.username).toMatch(/skyes/);
+      .send({ username: "skyes", password: "pie" })
+      .then(user => {
+        expect(user.body.username).toBe("skyes");
+      });
+  });
+  it("returns status 201", async () => {
+    return ask(server)
+      .post("/api/auth/register")
+      .send({ username: "test", password: "testing" })
+      .then(response => {
+        expect(response.status).toBe(201);
+      });
   });
 });
 
-it("returns status 200", async () => {
-  return ask(server)
-    .post("/api/auth/register")
-    .send({ username: "skyes", password: "pie" });
-  expect(response.status).toBe(200);
+describe("POST /login", () => {
+  beforeEach(async () => {
+    await db("users").truncate();
+  });
+
+  it("return 200 status", async () => {
+    return ask(server)
+      .post("/api/auth/register")
+      .send({ username: "skyes", password: "pie" })
+      .then(res => {
+        return ask(server)
+          .post("/api/auth/login")
+          .send({ username: "skyes", password: "pie" })
+          .then(response => {
+            expect(response.status).toBe(200);
+          });
+      });
+  });
+  it("return token", () => {
+    return ask(server)
+      .post("/api/auth/register")
+      .send({ username: "skyes", password: "pie" })
+      .then(user => {
+        return ask(server)
+          .post("/api/auth/login")
+          .send({ username: "skyes", password: "pie" })
+          .then(response => {
+            expect(response.body).toEqual({ token: response.body.token });
+          });
+      });
+  });
 });
 
 describe("GET /jokes", () => {
@@ -35,7 +71,40 @@ describe("GET /jokes", () => {
   it("return 200 status", async () => {
     return ask(server)
       .post("/api/auth/register")
-      .send({ username: "skyes", password: "pie" });
-    expect(response.status).toBe(200);
+      .send({ username: "skyes", password: "pie" })
+      .then(res => {
+        return ask(server)
+          .post("/api/auth/login")
+          .send({ username: "skyes", password: "pie" })
+          .then(response => {
+            return ask(server)
+              .get("/api/jokes")
+              .set("authorization", response.body.token)
+              .then(jokes => {
+                expect(jokes.status).toBe(200);
+
+                // expect(jokes.type).toMatch(/json/);
+              });
+          });
+      });
+  });
+
+  it("returns json", async () => {
+    return ask(server)
+      .post("/api/auth/register")
+      .send({ username: "skyes", password: "pie" })
+      .then(res => {
+        return ask(server)
+          .post("/api/auth/login")
+          .send({ username: "skyes", password: "pie" })
+          .then(response => {
+            return ask(server)
+              .get("/api/jokes")
+              .set("authorization", response.body.token)
+              .then(jokes => {
+                expect(jokes.type).toMatch(/json/);
+              });
+          });
+      });
   });
 });
